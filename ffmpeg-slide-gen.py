@@ -66,11 +66,12 @@ def main(slide_count, slides, slide_timestamps, vlc_playlist_file, audio_file, v
 
     slide_idx = dict(enumerate(isinstance(slides, Tuple) and slides or [slides], start=1))
     total_duration = int(sh.mediainfo('--Inform=Audio;%Duration%', audio_file)) / 1000
+    click.echo(f"Total duration of the video will be: {total_duration} seconds")
 
     slide_durs = []
     last_no = 1
     last_ts = 0
-    for slide_no, slide_ts in sorted(slide_timestamps, key=itemgetter(1)):
+    for entry_no, (slide_no, slide_ts) in enumerate(sorted(slide_timestamps, key=itemgetter(1)), start=1):
         if slide_no not in slide_idx:
             raise click.UsageError(f"Invalid slide number: {slide_no}")
         if slide_ts < 0 or slide_ts > total_duration:
@@ -80,7 +81,7 @@ def main(slide_count, slides, slide_timestamps, vlc_playlist_file, audio_file, v
             raise click.UsageError(f"Invalid timestamp: {slide_ts} for slide number: {slide_no}, timestamp must be greater than the last timestamp: ${last_ts}")
 
         slide_durs.append((last_no, slide_ts - last_ts))
-        if slide_no == len(slide_timestamps):
+        if entry_no == len(slide_timestamps):
             slide_durs.append((slide_no, total_duration - slide_ts))
         else:
             last_ts = slide_ts
