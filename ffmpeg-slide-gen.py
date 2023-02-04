@@ -1,9 +1,12 @@
 import sys
+import re
+from functools import partial
+from operator import itemgetter
 from typing import Tuple
 from tempfile import NamedTemporaryFile
 
 import click
-from sh import mediainfo, ffmpeg
+import sh
 
 
 def with_dynamic_narg(cnt_opt, tgt_opt):
@@ -25,35 +28,68 @@ def with_dynamic_narg(cnt_opt, tgt_opt):
 
 @click.command(cls=with_dynamic_narg('slide_count', 'slides'))
 #@click.option("--total-duration", "--td", "-t", type=click.INT, required=True, help="Total duration of the video in seconds")
-@click.option("--slide-count", "-c", required=True, help="Number of slides")
-@click.option("--slides", "-i", nargs=0, required=True, type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="List of image filenames as an ordered sequence")
-@click.option("--slide-ts", "--ts", "-s", "slide_timestamps", multiple=True, required=True, type=(int, int), help="Pair of integers: slide timestamp")
-@click.option("--audio-file", "-a", required=True, type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="Specify the path to the audio file")
-@click.option("--video-out", "-o", required=True, help="Specify the path for the output video file")
-def main(slide_count, slides, slide_timestamps, audio_file, video_out):
+@click.option("--slide-count", "-c", required=True, help="Number of slides.")
+@click.option("--slides", "-i", nargs=0, type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="List of image filenames as an ordered sequence.")
+@click.option("--slide-timestamps", "--ts", "-s", "slide_timestamps", multiple=True, type=(int, float), help="Pair of numbers: <slide-number timestamp>. Not needed if --vlc-playlist-file is specified.")
+@click.option("--vlc-playlist-file", "--m3u", "-b", type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="Specify the path to the m3u file to extract bookmarks as slide timestamps. Not needed if --slide-timestamps is specified.")
+@click.option("--audio-file", "-a", required=True, type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="Specify the path to the audio file.")
+@click.option("--video-out", "-o", required=True, help="Specify the path for the output video file.")
+@click.option("--dry-run", "-n", is_flag=True, default=False, help="Enable dry-run mode, generates the concat file and prints the ffmpeg command without actually running it.")
+def main(slide_count, slides, slide_timestamps, vlc_playlist_file, audio_file, video_out, dry_run):
     """
     Generate FFMpeg demux concat file from specified slides and timestamps.
     See: https://superuser.com/a/619843/26006
     """
+    if slide_timestamps and vlc_playlist_file:
+        raise click.UsageError("--slide-timestamps and --vlc-playlist-file are mutually exclusive options")
+    elif not (slide_timestamps or vlc_playlist_file):
+        raise click.UsageError("One of the --slide-timestamps and --vlc-playlist-file options must be specified")
+
+    if vlc_playlist_file:
+        bookmark_line_pat = re.compile(r"^#EXTVLCOPT:bookmarks=\{.*\}$")
+        bookmark_pat = re.compile(r"\{name=([^,]+),time=([^}]+)\}")
+        bookmarks = []
+        with open(vlc_playlist_file, "r") as m3u_file:
+            for line in m3u_file:
+                line_match = bookmark_line_pat.match(line)
+                if line_match:
+                    for slide_no, slide_ts in bookmark_pat.findall(line):
+                        if not slide_no.isdigit():
+                            raise click.UsageError(f"Bookmark name: {slide_no} is invalid as a slide number, only integers are accepted")
+                        slide_no = int(slide_no)
+                        try:
+                            slide_ts = slide_ts.isdigit() and int(slide_ts) or float(slide_ts)
+                        except ValueError:
+                            raise click.UsageError(f"Bookmark timestamp: {slide_ts} is invalid, only integers and floats are accepted")
+                        bookmarks.append((slide_no, slide_ts))
+        slide_timestamps = tuple(bookmarks)
+
     slide_idx = dict(enumerate(isinstance(slides, Tuple) and slides or [slides], start=1))
-    total_duration = int(mediainfo('--Inform=Audio;%Duration%', audio_file)) / 1000
+    total_duration = int(sh.mediainfo('--Inform=Audio;%Duration%', audio_file)) / 1000
 
     slide_durs = []
-    last_ts = -1
-    for slide_no, slide_ts in slide_timestamps:
+    last_no = 1
+    last_ts = 0
+    for slide_no, slide_ts in sorted(slide_timestamps, key=itemgetter(1)):
         if slide_no not in slide_idx:
             raise click.UsageError(f"Invalid slide number: {slide_no}")
         if slide_ts < 0 or slide_ts > total_duration:
             raise click.UsageError(f"Invalid timestamp: {slide_ts} for slide number: {slide_no}, timestamp must be between 0 and {total_duration}")
-        if slide_ts <= last_ts:
+        # It is OK to find a duplicate entry.
+        if ((slide_no != last_no) and slide_ts <= last_ts) or (slide_no == last_no and slide_ts < last_ts) :
             raise click.UsageError(f"Invalid timestamp: {slide_ts} for slide number: {slide_no}, timestamp must be greater than the last timestamp: ${last_ts}")
 
-        slide_durs.append((slide_no, slide_ts - (last_ts >= 0 and last_ts or 0)))
-        last_ts = slide_ts
+        slide_durs.append((last_no, slide_ts - last_ts))
+        if slide_no == len(slide_timestamps):
+            slide_durs.append((slide_no, total_duration - slide_ts))
+        else:
+            last_ts = slide_ts
+            last_no = slide_no
+    # Add one entry for the last slide with no duration. It is weird that this is needed, as we are already adding one for final slide too.
     slide_durs.append((slide_no, None))
 
-    with NamedTemporaryFile(mode="w") as concat_file:
-        print(f"Writing concat file to the tempfile: {concat_file.name}")
+    with NamedTemporaryFile(mode = "w", delete = not dry_run) as concat_file:
+        click.echo(f"Generating concat file...")
         concat_file.write("ffconcat version 1.0\n")
         for slide_no, slide_dur in slide_durs:
             concat_file.write(f"file {slide_idx[slide_no]}\n")
@@ -61,8 +97,14 @@ def main(slide_count, slides, slide_timestamps, audio_file, video_out):
                 concat_file.write(f"duration {slide_dur}\n")
 
         concat_file.flush()
-        print("Generating slide video")
-        ffmpeg("-f", "concat", "-safe", "0", "-i", concat_file.name, "-i", audio_file, "-c:a", "copy", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-vf", "fps=10, scale=1280:720", "-y", video_out, _out=sys.stdout, _err=sys.stderr, _in=sys.stdin)
+        if dry_run:
+            ffmpeg = partial(sh.echo, "ffmpeg")
+            click.echo("Run the following command to generate slides video...")
+        else:
+            ffmpeg = sh.ffmpeg
+            click.echo("Running ffmpeg to generate slides video...")
+
+        ffmpeg("-f", "concat", "-safe", "0", "-i", concat_file.name, "-i", audio_file, "-c:a", "copy", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-vf", "fps=10,scale=1280:720", "-y", video_out, _out=sys.stdout, _err=sys.stderr, _in=sys.stdin)
 
 
 if __name__ == '__main__':
