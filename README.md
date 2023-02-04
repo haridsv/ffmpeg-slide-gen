@@ -119,6 +119,6 @@ $ python ffmpeg-slide-gen.py -a /tmp/proj/audio.mp4 -o /tmp/proj/video.mp4 -c $(
   -s 17 2139
 ```
 
-NOTE: the above command relies on the shell wildcard expansion to order them sequentially, which works as expected for the slides exported from Keynote on a Mac computer.
-
 As can be seen above, slide numbers can be repeated and in any order, in case the presenter doesn't go through them sequentially or goes back and forth.
+
+**NOTE**: the above sample commands rely on the shell wildcard expansion to order them sequentially, which works as expected for the slides exported from Keynote on a Mac computer.
