@@ -60,8 +60,9 @@ def main(slide_count, slides, slide_timestamps, audio_file, video_out):
             if slide_dur is not None:
                 concat_file.write(f"duration {slide_dur}\n")
 
+        concat_file.flush()
         print("Generating slide video")
-        ffmpeg("-f", "concat", "-safe", "0", "-i", concat_file.name, "-i", audio_file, "-c:a", "copy", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-vf", "fps=10, scale=1280:720", video_out, _out=sys.stdout, _err=sys.stderr, _in=sys.stdin)
+        ffmpeg("-f", "concat", "-safe", "0", "-i", concat_file.name, "-i", audio_file, "-c:a", "copy", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-vf", "fps=10, scale=1280:720", "-y", video_out, _out=sys.stdout, _err=sys.stderr, _in=sys.stdin)
 
 
 if __name__ == '__main__':
