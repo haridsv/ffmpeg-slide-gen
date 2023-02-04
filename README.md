@@ -38,32 +38,66 @@ Usage: ffmpeg-slide-gen.py [OPTIONS]
   https://superuser.com/a/619843/26006
 
 Options:
-  -c, --slide-count TEXT          Number of slides  [required]
+  -c, --slide-count TEXT          Number of slides.  [required]
   -i, --slides FILE...            List of image filenames as an ordered
-                                  sequence  [required]
-  -s, --slide-ts, --ts <INTEGER INTEGER>...
-                                  Pair of integers: slide timestamp
+                                  sequence.
+  -s, --slide-timestamps, --ts <INTEGER FLOAT>...
+                                  Pair of numbers: <slide-number timestamp>.
+                                  Not needed if --vlc-playlist-file is
+                                  specified.
+  -b, --vlc-playlist-file, --m3u FILE
+                                  Specify the path to the m3u file to extract
+                                  bookmarks as slide timestamps. Not needed if
+                                  --slide-timestamps is specified.
+  -a, --audio-file FILE           Specify the path to the audio file.
                                   [required]
-  -a, --audio-file FILE           Specify the path to the audio file
+  -o, --video-out TEXT            Specify the path for the output video file.
                                   [required]
-  -o, --video-out TEXT            Specify the path for the output video file
-                                  [required]
+  -n, --dry-run                   Enable dry-run mode, generates the concat
+                                  file and prints the ffmpeg command without
+                                  actually running it.
   --help                          Show this message and exit.
 ```
 
 ## Overall Approach
 
+### Approach 1
+
 - Export presentation as images
     - A PPT file can be opened in Keynote and all slides can be exported to a folder, say /tmp/proj
     - A PDF can be exported to images using `ghostscript`, e.g., `gs -sDEVICE=jpeg -sOutputFile=page-%03d.jpg -r1280x720 -f file.pdf`
-- Open the presentation and play the audio to identify the timestamps.
+- Generate an interim video by running `ffmpeg-slide-gen.py` with just the first slide
+- Open the presentation and the intermim video
+- While playing the video, add a bookmark at each location when a slide starts and rename it with the slide number
+- At the end save it as a playlist which should create a `.m3u` file
+- Rerun `ffmpeg-slide-gen.py` with the `m3u` file as input to produce the final video.
+
+#### Sample commands
+
+```shell
+$ python ffmpeg-slide-gen.py -a /tmp/proj/audio.mp4 -o /tmp/proj/video-tmp.mp4 -c $(echo /tmp/proj/*.jpeg | wc -w) -i /tmp/proj/*.jpeg -s 1 0
+$ cat /tmp/video.m3u
+#EXTM3U
+#EXTINF:2438,video-tmp.mp4
+#EXTVLCOPT:bookmarks={name=1,time=0},{name=2,time=5},{name=3,time=35},{name=4,time=40},{name=5,time=105},{name=6,time=476},{name=7,time=719},{name=8,time=832},{name=9,time=892},{name=10,time=904},{name=11,time=965},{name=12,time=979},{name=13,time=1068},{name=14,time=1167},{name=15,time=1178},{name=14,time=1261},{name=16,time=1310},{name=15,time=1406},{name=17,time=2139}
+file:///private/tmp/video-tmp.mp4
+$ python ffmpeg-slide-gen.py -a /tmp/proj/audio.mp4 -o /tmp/proj/video.mp4 -c $(echo /tmp/proj/*.jpeg | wc -w) -i /tmp/proj/*.jpeg -b /tmp/video.m3u
+
+```
+
+### Approach 2
+
+- Export presentation as images
+    - A PPT file can be opened in Keynote and all slides can be exported to a folder, say /tmp/proj
+    - A PDF can be exported to images using `ghostscript`, e.g., `gs -sDEVICE=jpeg -sOutputFile=page-%03d.jpg -r1280x720 -f file.pdf`
+- Open the presentation and play the audio to identify the timestamps
 - Whenever a change in slide is observed, take a note of the slide number and timestamp (in seconds)
 - Use the above timestamps to construct the command-line to produce final video
 
-## Sample command-line
+#### Sample command
 
-```
-python ffmpeg-slide-gen.py -a /tmp/proj/audio.mp4 -o /tmp/proj/video.mp4 -c $(echo /tmp/proj/*.jpeg | wc -w) -i /tmp/proj/*.jpeg \
+```shell
+$ python ffmpeg-slide-gen.py -a /tmp/proj/audio.mp4 -o /tmp/proj/video.mp4 -c $(echo /tmp/proj/*.jpeg | wc -w) -i /tmp/proj/*.jpeg \
   -s 1 0 \
   -s 2 5 \
   -s 3 35 \
