@@ -21,7 +21,11 @@ Tested with Python 3.9.1 but may work with other Python 3 versions. Requires a f
 pip install -r requirements.txt
 ```
 
-Also depends on `ffmpeg` and `mediainfo` commands so make sure to have them in the shell `PATH`.
+Also depends on `ffmpeg` and `mediainfo` commands so make sure to have them in the shell `PATH`. Tested with the following versions:
+- ffmpeg `5.1.2` (can be installed using Homebrew by running `brew install ffmpeg`)
+- mediainfo `v22.12` (can be installed using Homebrew by running `brew install mediainfo`)
+
+NOTE: All the testing was done on Mac OS Ventura `13.1`
 
 ## Usage
 
