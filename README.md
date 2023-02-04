@@ -68,8 +68,8 @@ Options:
     - A PDF can be exported to images using `ghostscript`, e.g., `gs -sDEVICE=jpeg -sOutputFile=page-%03d.jpg -r1280x720 -f file.pdf`
 - Generate an interim video by running `ffmpeg-slide-gen.py` with just the first slide
 - Open the presentation and the intermim video
-- While playing the video, add a bookmark at each location when a slide starts and rename it with the slide number
-- At the end save it as a playlist which should create a `.m3u` file
+- While playing the video, [add a bookmark](https://superuser.com/a/1765955/26006) at each location when a slide starts and rename it with the slide number
+- At the end [save it as a playlist](https://superuser.com/a/1765955/26006) which should create a `.m3u` file
 - Rerun `ffmpeg-slide-gen.py` with the `m3u` file as input to produce the final video.
 
 #### Sample commands
