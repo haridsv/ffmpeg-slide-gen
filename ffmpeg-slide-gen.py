@@ -30,7 +30,7 @@ def with_dynamic_narg(cnt_opt, tgt_opt):
 #@click.option("--total-duration", "--td", "-t", type=click.INT, required=True, help="Total duration of the video in seconds")
 @click.option("--slide-count", "-c", required=True, help="Number of slides.")
 @click.option("--slides", "-i", nargs=0, type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="List of image filenames as an ordered sequence.")
-@click.option("--slide-timestamps", "--ts", "-s", "slide_timestamps", multiple=True, type=(int, float), help="Pair of numbers: <slide-number timestamp>. Not needed if --vlc-playlist-file is specified.")
+@click.option("--slide-timestamps", "--ts", "-s", "slide_timestamps", multiple=True, type=(int, str), help="Pair of: <slide-number timestamp>. Timestamp can be in seconds or min:sec. Not needed if --vlc-playlist-file is specified.")
 @click.option("--vlc-playlist-file", "--m3u", "-b", type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="Specify the path to the m3u file to extract bookmarks as slide timestamps. Not needed if --slide-timestamps is specified.")
 @click.option("--audio-file", "-a", required=True, type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="Specify the path to the audio file.")
 @click.option("--video-out", "-o", required=True, help="Specify the path for the output video file.")
@@ -62,7 +62,9 @@ def main(slide_count, slides, slide_timestamps, vlc_playlist_file, audio_file, v
                         except ValueError:
                             raise click.UsageError(f"Bookmark timestamp: {slide_ts} is invalid, only integers and floats are accepted")
                         bookmarks.append((slide_no, slide_ts))
-        slide_timestamps = tuple(bookmarks)
+        slide_timestamps = bookmarks
+    else:
+        slide_timestamps = [(slide_no, to_timestamp(slide_ts)) for slide_no, slide_ts in slide_timestamps]
 
     slide_idx = dict(enumerate(isinstance(slides, Tuple) and slides or [slides], start=1))
     total_duration = int(sh.mediainfo('--Inform=Audio;%Duration%', audio_file)) / 1000
@@ -106,6 +108,23 @@ def main(slide_count, slides, slide_timestamps, vlc_playlist_file, audio_file, v
             click.echo("Running ffmpeg to generate slides video...")
 
         ffmpeg("-f", "concat", "-safe", "0", "-i", concat_file.name, "-i", audio_file, "-c:a", "copy", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-vf", "fps=10,scale=1280:720", "-y", video_out, _out=sys.stdout, _err=sys.stderr, _in=sys.stdin)
+
+
+def to_timestamp(ts_str: str):
+    if ts_str.isdigit():
+        return int(ts_str)
+    else:
+        try:
+            sep_count = ts_str.count(":")
+            if sep_count:
+                if sep_count > 1:
+                    raise click.UsageError(f"Invalid timestamp format: {ts_str}, expected min:sec")
+                (min_val, sec_val) = ts_str.split(":")
+                return int(min_val) * 60 + int(sec_val)
+            else:
+                return float(ts_str)
+        except ValueError as e:
+            raise click.UsageError(f"Invalid timestamp value: {ts_str}") from e
 
 
 if __name__ == '__main__':

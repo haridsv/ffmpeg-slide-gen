@@ -31,7 +31,7 @@ def lines(transcript, int_dur=60):
 
 
 @click.command()
-@click.option("--interval-duration", "--id", "-d", default=60, help="Interval duration for generating timestamps, use -1 to disable and produce raw output")
+@click.option("--interval-duration", "--id", "-d", default=60, help="Interval duration for generating timestamps, use 0 to disable and produce raw output")
 @click.option("--timestamp-in-seconds", "--tis", "-s", is_flag=True, default=False, help="Specify to see duration in seconds instead of min:sec")
 @click.argument("video-id")
 def main(interval_duration, timestamp_in_seconds, video_id):
