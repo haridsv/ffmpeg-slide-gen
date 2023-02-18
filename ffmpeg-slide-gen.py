@@ -34,8 +34,9 @@ def with_dynamic_narg(cnt_opt, tgt_opt):
 @click.option("--vlc-playlist-file", "--m3u", "-b", type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="Specify the path to the m3u file to extract bookmarks as slide timestamps. Not needed if --slide-timestamps is specified.")
 @click.option("--audio-file", "-a", required=True, type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="Specify the path to the audio file.")
 @click.option("--video-out", "-o", required=True, help="Specify the path for the output video file.")
+@click.option("--video-scale", "-vs", default="1280:720", show_default=True, help="Specify an alternative scale for output video")
 @click.option("--dry-run", "-n", is_flag=True, default=False, help="Enable dry-run mode, generates the concat file and prints the ffmpeg command without actually running it.")
-def main(slide_count, slides, slide_timestamps, vlc_playlist_file, audio_file, video_out, dry_run):
+def main(slide_count, slides, slide_timestamps, vlc_playlist_file, audio_file, video_out, video_scale, dry_run):
     """
     Generate FFMpeg demux concat file from specified slides and timestamps.
     See: https://superuser.com/a/619843/26006
@@ -107,7 +108,8 @@ def main(slide_count, slides, slide_timestamps, vlc_playlist_file, audio_file, v
             ffmpeg = sh.ffmpeg
             click.echo("Running ffmpeg to generate slides video...")
 
-        ffmpeg("-f", "concat", "-safe", "0", "-i", concat_file.name, "-i", audio_file, "-c:a", "copy", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-vf", "fps=10,scale=1280:720", "-y", video_out, _out=sys.stdout, _err=sys.stderr, _in=sys.stdin)
+        video_scale = video_scale.replace("x", ":")
+        ffmpeg("-f", "concat", "-safe", "0", "-i", concat_file.name, "-i", audio_file, "-c:a", "copy", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-vf", f"fps=10,scale={video_scale}", "-y", video_out, _out=sys.stdout, _err=sys.stderr, _in=sys.stdin)
 
 
 def to_timestamp(ts_str: str):

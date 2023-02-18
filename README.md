@@ -72,7 +72,7 @@ Options:
 
 - Export presentation as images
     - A PPT file can be opened in Keynote and all slides can be exported to a folder, say /tmp/proj
-    - A PDF can be exported to images using `ghostscript`, e.g., `gs -sDEVICE=jpeg -sOutputFile=page-%03d.jpg -r1280x720 -f file.pdf`
+    - A PDF can be exported to images using `ghostscript`, e.g., `gs -sDEVICE=jpeg -sOutputFile=page-%03d.jpeg -r100x100 -dNOPAUSE -dBATCH -f file.pdf`
 - Generate an interim video by running `ffmpeg-slide-gen.py` with just the first slide
 - Open the presentation and the intermim video
 - While playing the video, [add a bookmark](https://superuser.com/a/1765955/26006) at each location when a slide starts and rename it with the slide number
