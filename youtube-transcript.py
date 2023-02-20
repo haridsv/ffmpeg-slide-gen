@@ -40,7 +40,7 @@ def main(interval_duration, timestamp_in_seconds, video_id):
     # Just use the first transcript, let it raise an exception if none exist.
     transcript = next(iter(transcript_list))
     print("<html><body><table>")
-    lines_iter = interval_duration <= 0 and transcript.fetch() or lines(transcript)
+    lines_iter = interval_duration <= 0 and transcript.fetch() or lines(transcript, interval_duration)
     for line_map in lines_iter:
         link_to_tstmp = f"https://youtu.be/{video_id}?t={line_map['start']}"
         if timestamp_in_seconds:
