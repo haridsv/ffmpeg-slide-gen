@@ -38,13 +38,18 @@ Usage: ffmpeg-slide-gen.py [OPTIONS]
   https://superuser.com/a/619843/26006
 
 Options:
-  -c, --slide-count TEXT          Number of slides.  [required]
+  -c, --slide-count TEXT          Number of slides.
   -i, --slides FILE...            List of image filenames as an ordered
                                   sequence.
-  -s, --slide-timestamps, --ts <INTEGER TEXT>...
+  -t, --text-timestamp, --txt <TEXT TEXT>...
+                                  Pair of: <timestamp slide-text>. Timestamp
+                                  can be in seconds or [hh:]mm:ss. Do not mix
+                                  with --slide-timestamp/--vlc-playlist-file
+                                  options.
+  -s, --slide-timestamp, --ts <INTEGER TEXT>...
                                   Pair of: <slide-number timestamp>. Timestamp
-                                  can be in seconds or min:sec. Not needed if
-                                  --vlc-playlist-file is specified.
+                                  can be in seconds or [hh:]mm:ss. Not needed
+                                  if --vlc-playlist-file is specified.
   -b, --vlc-playlist-file, --m3u FILE
                                   Specify the path to the m3u file to extract
                                   bookmarks as slide timestamps. Not needed if
@@ -53,6 +58,8 @@ Options:
                                   [required]
   -o, --video-out TEXT            Specify the path for the output video file.
                                   [required]
+  -vs, --video-scale TEXT         Specify an alternative scale for output
+                                  video  [default: 1280:720]
   -n, --dry-run                   Enable dry-run mode, generates the concat
                                   file and prints the ffmpeg command without
                                   actually running it.

@@ -72,7 +72,7 @@ def main(interval_duration, timestamp_in_seconds, word_count, video_id):
         interval_duration > 0 and lines_by_dur(transcript, interval_duration)) or lines_by_words(transcript, word_count)
 
     for line_map in lines_iter:
-        link_to_tstmp = f"https://youtu.be/{video_id}?t={line_map['start']}"
+        link_to_tstmp = f"https://youtu.be/{video_id}?t={int(line_map['start'])}"
         if timestamp_in_seconds:
             tstmp_str = str(int(line_map['start']))
         else:
