@@ -75,23 +75,23 @@ def main(slide_count, slides, text_timestamps, slide_timestamps, vlc_playlist_fi
         slide_idx = dict(enumerate(isinstance(slides, Tuple) and slides or [slides], start=1))
 
         slide_durs = []
-        last_no = 1
-        last_ts = 0
+        last_no = last_ts = -1 # Start with invalid values
         for entry_no, (slide_no, slide_ts) in enumerate(sorted(slide_timestamps, key=itemgetter(1)), start=1):
             if slide_no not in slide_idx:
                 raise click.UsageError(f"Invalid slide number: {slide_no}")
             if slide_ts < 0 or slide_ts > total_duration:
                 raise click.UsageError(f"Invalid timestamp: {slide_ts} for slide number: {slide_no}, timestamp must be between 0 and {total_duration}")
             # It is OK to find a duplicate entry.
-            if ((slide_no != last_no) and slide_ts <= last_ts) or (slide_no == last_no and slide_ts < last_ts) :
-                raise click.UsageError(f"Invalid timestamp: {slide_ts} for slide number: {slide_no}, timestamp must be greater than the last timestamp: ${last_ts}")
+            if (slide_no != last_no and slide_ts <= last_ts) or (slide_no == last_no and slide_ts < last_ts):
+                raise click.UsageError(f"Invalid timestamp: {slide_ts} for slide number: {slide_no}, timestamp must be greater than the last timestamp: {last_ts}")
 
-            slide_durs.append((last_no, slide_ts - last_ts))
+            slide_durs.append((last_no > 0 and last_no or 1, slide_ts - (last_ts > 0 and last_ts or 0)))
             if entry_no == len(slide_timestamps):
                 slide_durs.append((slide_no, total_duration - slide_ts))
             else:
                 last_ts = slide_ts
                 last_no = slide_no
+        slide_durs = [dur for dur in slide_durs if dur[1]] # Remove any 0 duration slides.
         # Add one entry for the last slide with no duration. It is weird that this is needed, as we are already adding one for final slide too.
         slide_durs.append((slide_no, None))
 
