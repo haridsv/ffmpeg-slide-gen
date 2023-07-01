@@ -67,7 +67,7 @@ def main(interval_duration, timestamp_in_seconds, word_count, video_id):
     transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
     # Just use the first transcript, let it raise an exception if none exist.
     transcript = next(iter(transcript_list))
-    print("<html><body><table>")
+    print("<html><body><dl>")
     lines_iter = (interval_duration <= 0 and word_count <= 0) and transcript.fetch() or (
         interval_duration > 0 and lines_by_dur(transcript, interval_duration)) or lines_by_words(transcript, word_count)
 
@@ -79,8 +79,8 @@ def main(interval_duration, timestamp_in_seconds, word_count, video_id):
             st_min = int(line_map['start'] / 60)
             st_sec = int(line_map['start'] - st_min * 60)
             tstmp_str = ("%2d:%-2d" % (st_min, st_sec)).replace(" ", "&nbsp;")
-        print("""<tr><td  style="vertical-align:top"><a href="%s">%s</a></td><td>%s</td></tr>""" % (link_to_tstmp, tstmp_str, line_map['text']))
-    print("</table></html></body>")
+        print("""<dt><a href="%s">%s</a></dt><dd>%s</dd>""" % (link_to_tstmp, tstmp_str, line_map['text']))
+    print("</dl></html></body>")
 
 
 if __name__ == '__main__':
