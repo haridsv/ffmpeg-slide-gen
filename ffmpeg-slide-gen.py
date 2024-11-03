@@ -34,10 +34,11 @@ def with_dynamic_narg(cnt_opt, tgt_opt):
 @click.option("--slide-timestamp", "--ts", "-s", "slide_timestamps", multiple=True, type=(int, str), help="Pair of: <slide-number timestamp>. Timestamp can be in seconds or [hh:]mm:ss. Not needed if --vlc-playlist-file is specified.")
 @click.option("--vlc-playlist-file", "--m3u", "-b", type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="Specify the path to the m3u file to extract bookmarks as slide timestamps. Not needed if --slide-timestamps is specified.")
 @click.option("--audio-file", "-a", required=True, type=click.Path(exists=True, dir_okay=False, resolve_path=True), help="Specify the path to the audio file.")
+@click.option("--ffmpeg-audio-opts", "-fao", default="'-c:a copy'", show_default=True, help="Specify the ffmpeg options to be used for audio track, e.g., '-ar 44100'.")
 @click.option("--video-out", "-o", required=True, help="Specify the path for the output video file.")
 @click.option("--video-scale", "-vs", default="1280:720", show_default=True, help="Specify an alternative scale for output video")
 @click.option("--dry-run", "-n", is_flag=True, default=False, help="Enable dry-run mode, generates the concat file and prints the ffmpeg command without actually running it.")
-def main(slide_count, slides, text_timestamps, slide_timestamps, vlc_playlist_file, audio_file, video_out, video_scale, dry_run):
+def main(slide_count, slides, text_timestamps, slide_timestamps, vlc_playlist_file, audio_file, ffmpeg_audio_opts, video_out, video_scale, dry_run):
     """
     Generate FFMpeg demux concat file from specified slides and timestamps.
     See: https://superuser.com/a/619843/26006
@@ -95,6 +96,7 @@ def main(slide_count, slides, text_timestamps, slide_timestamps, vlc_playlist_fi
         # Add one entry for the last slide with no duration. It is weird that this is needed, as we are already adding one for final slide too.
         slide_durs.append((slide_no, None))
 
+    ffmpeg_audio_opts = ffmpeg_audio_opts and ffmpeg_audio_opts.split() or ["-c:a", "copy"]
     with NamedTemporaryFile(mode = "w", delete = not dry_run) as tmp_file:
         if slide_timestamps or vlc_playlist_file:
             click.echo(f"Generating concat file...")
@@ -107,7 +109,7 @@ def main(slide_count, slides, text_timestamps, slide_timestamps, vlc_playlist_fi
             tmp_file.flush()
 
             video_scale = video_scale.replace("x", ":")
-            ffmpeg_args = ("-f", "concat", "-safe", "0", "-i", tmp_file.name, "-i", audio_file, "-c:a", "copy", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-vf", f"fps=10,scale={video_scale}", "-y", video_out)
+            ffmpeg_args = ("-f", "concat", "-safe", "0", "-i", tmp_file.name, "-i", audio_file, *ffmpeg_audio_opts, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-vf", f"fps=10,scale={video_scale}", "-y", video_out)
         else:
             click.echo(f"Generating subs file...")
             text_timestamps += ((str(total_duration), None),)
@@ -120,7 +122,7 @@ def main(slide_count, slides, text_timestamps, slide_timestamps, vlc_playlist_fi
             video_scale = video_scale.replace(":", "x")
             ffmpeg_args = ("-i", audio_file, "-f", "lavfi", "-i", f"color=c=white:s={video_scale}:d={total_duration}:r=1",
                            "-vf", f"subtitles={tmp_file.name}:force_style='Alignment=10,FontSize=26,PrimaryColour=black,SecondaryColour=white,Fontname=Arial,Spacing=0.2,Outline=0'",
-                           "-c:a", "copy", "-y", video_out,)
+                           *ffmpeg_audio_opts, "-ar", "44100", "-y", video_out,)
 
         if dry_run:
             ffmpeg = partial(sh.echo, "ffmpeg")
